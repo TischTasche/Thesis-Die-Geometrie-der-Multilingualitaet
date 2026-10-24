@@ -187,6 +187,46 @@ def plot_average_metrics(results, dataset_name):
     plt.show()
 
 
+def plot_csls_alignment_comparison(results, dataset_name):
+    """Compare layer-averaged CSLS retrieval before and after alignment."""
+    metric_columns = [
+        ("top1_source", "Top-1 S→T"),
+        ("aligned_top1_source", "Top-1 S→T\nAligned"),
+        ("top5_source", "Top-5 S→T"),
+        ("aligned_top5_source", "Top-5 S→T\nAligned"),
+        ("top1_target", "Top-1 T→S"),
+        ("aligned_top1_target", "Top-1 T→S\nAligned"),
+        ("top5_target", "Top-5 T→S"),
+        ("aligned_top5_target", "Top-5 T→S\nAligned"),
+    ]
+    model_names = list(results)
+    table_rows = [
+        [
+            f"{np.mean([layer[metric_key] for layer in results[model_name]['layer_metrics']]):.1%}"
+            for metric_key, _ in metric_columns
+        ]
+        for model_name in model_names
+    ]
+
+    figure, axis = plt.subplots(figsize=(15, max(3, len(model_names) * 0.7 + 1.5)))
+    axis.axis("off")
+    axis.set_title(f"Average CSLS retrieval before and after Procrustes alignment: {dataset_name}")
+    table = axis.table(
+        cellText=table_rows,
+        rowLabels=model_names,
+        colLabels=[label for _, label in metric_columns],
+        loc="center",
+        cellLoc="center",
+        rowLoc="center",
+    )
+    table.auto_set_font_size(False)
+    table.set_fontsize(9)
+    table.scale(1, 1.4)
+    figure.tight_layout()
+    save_figure(figure, "csls_alignment_comparison.png", dataset_name)
+    plt.show()
+
+
 """
 Plots a table showcasing the average of procrustes error across layers for each model
 So average of procrustes error of e.g. XLM of all layers
