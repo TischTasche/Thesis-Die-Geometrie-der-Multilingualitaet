@@ -12,6 +12,7 @@ from Plot_functions import (
     plot_csls_alignment_comparison,
     plot_cosine_similarity,
     plot_language_cloud,
+    plot_pca_cumulative_variance,
     plot_procrustes_error,
 )
 
@@ -388,6 +389,7 @@ def main():
         plot_aligned_topk_retrieval(results, dataset_name)
         plot_average_metrics(results, dataset_name)
         plot_csls_alignment_comparison(results, dataset_name)
+        plot_pca_cumulative_variance(results, dataset_name, max_components=10)
 
     german_results = results_by_dataset["english_german"]
     french_results = results_by_dataset["english_french"]
