@@ -67,7 +67,7 @@ def plot_cosine_similarity(results, dataset_name):
         results,
         dataset_name,
         "avg_cosine",
-        "Similarity score",
+        "Cosine Similarity score",
         "avg_cosine.png",
     )
 
