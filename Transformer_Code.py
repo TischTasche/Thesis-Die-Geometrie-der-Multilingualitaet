@@ -7,7 +7,6 @@ import numpy as np
 import torch
 from transformers import AutoTokenizer, AutoModel
 from sklearn.decomposition import PCA
-from sklearn.model_selection import KFold
 from Plot_functions import (
     plot_aligned_topk_retrieval,
     plot_average_metrics,
@@ -146,42 +145,40 @@ def procrustes_align(source, target):
     return rotation, aligned_target, mean_error, source_mean, target_mean
 
 # ----------------------------------------------------------------
-# K-Nearest Neigbour
+# CSLS
 # ----------------------------------------------------------------
 
-"""
-Calculates the cosine similarity for source and target embeddings,
-the highest cosine similarities (top 1 and 5) are compared to correct
-word embedding in target embedding, if top1 or top5 contains correct translation
-accumulator is increased
-source, target: word embeddings from two different languages
-correct_indices: array with indices to correct translation
-Returns float number of correct guesses between 0 and 1
-"""
-def nearest_neighbour(source, target, correct_indices):
-    top1 = 0
-    top5 = 0
+def csls(source, target, correct_indices, csls_k=3):
+    src_norm = source / np.linalg.norm(source, axis=1, keepdims=True)
+    tgt_norm = target / np.linalg.norm(target, axis=1, keepdims=True)
 
-    for i, src in enumerate(source):
-        sims = []
-        # Calculating cosine sim for every word embed in source and target
-        for j, tgt in enumerate(target):
-            sims.append((j, cosine_similarity(src, tgt)))
+    sim_matrix = src_norm @ tgt_norm.T
 
-        # Sorting the cosine sim so "highest" (~1) are at the front of sims[]
-        sims = sorted(sims, key=lambda x: x[1], reverse=True)
+    if csls_k > 0:
+        k = min(csls_k, target.shape[0], source.shape[0])
 
-        # Selecting the top 5 cosine sim values
-        topk = [idx for idx, _ in sims[:5]]
+        topk_tgt_sims = np.sort(sim_matrix, axis=1)[:, -k:]
+        r_T = np.mean(topk_tgt_sims, axis=1, keepdims=True)
 
-        if correct_indices[i] in topk[:1]: # acc if highest cosine sim is correct
-            top1 += 1 
-        if correct_indices[i] in topk[:5]: # acc if one of the highest 5 cosine sim is correct
-            top5 += 1
+
+        topk_src_sims = np.sort(sim_matrix, axis=0)[-k:, :]
+        r_S = np.mean(topk_src_sims, axis=0, keepdims=True)
+
+        csls_score = 2 * sim_matrix - r_T - r_S
+
+    else:
+        csls_score = sim_matrix
+
+    top_indices = np.argsort(csls_score, axis=1)[:, ::-1]
+    correct = np.array(correct_indices)
+
+    top1 = np.sum(top_indices[:, 0] == correct)
+    top5 = np.sum(np.any(top_indices[:, :5] == correct[:, None], axis=1))
 
     # Normalize the values by dividing by size
     n = len(source)
     return top1 / n, top5/ n
+
 
 # ----------------------------------------------------------------
 # Model call, embedding generation and evaluation
@@ -221,8 +218,12 @@ def evaluate_layers(source_by_layer, target_by_layer):
 
         # Top-k retrieval
         correct_indices = list(range(len(source)))
-        top1_source, top5_source = nearest_neighbour(source, target, correct_indices)
-        top1_target, top5_target = nearest_neighbour(target, source, correct_indices)
+        top1_source, top5_source = csls(
+            source, target, correct_indices, csls_k=3
+        )
+        top1_target, top5_target = csls(
+            target, source, correct_indices, csls_k=3
+        )
 
         # procrustes 
         train_number = 80
@@ -236,11 +237,11 @@ def evaluate_layers(source_by_layer, target_by_layer):
         aligned_source_test = (source_test - source_mean) @ rotation + target_mean
         aligned_target_test = (target_test - target_mean) @ rotation.T + source_mean
         correct_idx = list(range(len(source_test)))
-        ali_top1_source, ali_top5_source = nearest_neighbour(
-            aligned_source_test, target_test, correct_idx
+        ali_top1_source, ali_top5_source = csls(
+            aligned_source_test, target_test, correct_idx, csls_k=3
         )
-        ali_top1_target, ali_top5_target = nearest_neighbour(
-            target_test, aligned_source_test, correct_idx
+        ali_top1_target, ali_top5_target = csls(
+            target_test, aligned_source_test, correct_idx, csls_k=3
         )
 
         layer_name = "Embedding output" if layer_index == 0 else f"Layer {layer_index}"
