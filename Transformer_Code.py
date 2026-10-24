@@ -1,4 +1,3 @@
-import csv
 import os
 from pathlib import Path
 from typing import Any, cast
@@ -13,7 +12,6 @@ from Plot_functions import (
     plot_cosine_similarity,
     plot_language_cloud,
     plot_procrustes_error,
-    plot_topk_retrieval,
 )
 
 
@@ -39,17 +37,19 @@ MODEL_NAMES = [
 DATASETS = [
     {
         "name": "english_german",
-        "filename": "english_german_words.csv",
-        "target_column": "german",
+        "source_filename": "eng_Latn.devtest",
+        "target_filename": "deu_Latn.devtest",
         "target_language": "German",
     },
     {
         "name": "english_french",
-        "filename": "english_french_words.csv",
-        "target_column": "french",
+        "source_filename": "eng_Latn.devtest",
+        "target_filename": "fra_Latn.devtest",
         "target_language": "French",
     },
 ]
+
+MAX_SENTENCE_PAIRS = None
 
 
 # ----------------------------------------------------------------
@@ -226,7 +226,7 @@ def evaluate_layers(source_by_layer, target_by_layer):
         )
 
         # procrustes 
-        train_number = 80
+        train_number = 30
         source_train = source[:train_number]
         target_train = target[:train_number]
         source_test = source[train_number:]
@@ -318,23 +318,46 @@ def compare_model(model_name, pairs, dataset_name, model, tokenizer):
 
 
 # ----------------------------------------------------------------
-# Load word pairs from csv files
+# Load aligned sentence pairs
 # ----------------------------------------------------------------
-def load_word_pairs(dataset):
-    dataset_path = Path(__file__).with_name(dataset["filename"])
-    with dataset_path.open(encoding="utf-8", newline="") as dataset_file:
-        return [
-            (row["english"], row[dataset["target_column"]])
-            for row in csv.DictReader(dataset_file)
-        ]
+def load_sentence_pairs(dataset, max_pairs=None):
+    if max_pairs is not None and max_pairs < 1:
+        raise ValueError("max_pairs must be at least 1, or None for all pairs.")
+
+    source_path = Path(__file__).with_name(dataset["source_filename"])
+    target_path = Path(__file__).with_name(dataset["target_filename"])
+    source_sentences = source_path.read_text(encoding="utf-8").splitlines()
+    target_sentences = target_path.read_text(encoding="utf-8").splitlines()
+
+    if len(source_sentences) != len(target_sentences):
+        raise ValueError(
+            f"Sentence files have different line counts: "
+            f"{source_path.name} has {len(source_sentences)}, "
+            f"{target_path.name} has {len(target_sentences)}."
+        )
+
+    sentence_pairs = []
+    for line_number, (source, target) in enumerate(
+        zip(source_sentences, target_sentences), start=1
+    ):
+        source = source.strip()
+        target = target.strip()
+        if not source or not target:
+            raise ValueError(
+                f"Empty sentence in {source_path.name} or {target_path.name} "
+                f"at line {line_number}."
+            )
+        sentence_pairs.append((source, target))
+
+    return sentence_pairs if max_pairs is None else sentence_pairs[:max_pairs]
 
 # ----------------------------------------------------------------
 # Main call function 
 # ----------------------------------------------------------------
 
 def main():
-    word_pairs_by_dataset = {
-        dataset["name"]: load_word_pairs(dataset)
+    sentence_pairs_by_dataset = {
+        dataset["name"]: load_sentence_pairs(dataset, MAX_SENTENCE_PAIRS)
         for dataset in DATASETS
     }
     results_by_dataset = {
@@ -348,7 +371,7 @@ def main():
             dataset_name = dataset["name"]
             results_by_dataset[dataset_name][model_name] = compare_model(
                 model_name,
-                word_pairs_by_dataset[dataset_name],
+                sentence_pairs_by_dataset[dataset_name],
                 dataset_name,
                 model,
                 tokenizer,
