@@ -51,7 +51,6 @@ DATASETS = [
     },
 ]
 
-MAX_SENTENCE_PAIRS = None
 
 
 # ----------------------------------------------------------------
@@ -323,12 +322,10 @@ def compare_model(model_name, pairs, dataset_name, model, tokenizer):
 # ----------------------------------------------------------------
 # Load aligned sentence pairs
 # ----------------------------------------------------------------
-def load_sentence_pairs(dataset, max_pairs=None):
-    if max_pairs is not None and max_pairs < 1:
-        raise ValueError("max_pairs must be at least 1, or None for all pairs.")
-
-    source_path = Path(__file__).with_name(dataset["source_filename"])
-    target_path = Path(__file__).with_name(dataset["target_filename"])
+def load_sentence_pairs(dataset):
+    dataset_directory = Path(__file__).with_name("datasets")
+    source_path = dataset_directory / dataset["source_filename"]
+    target_path = dataset_directory / dataset["target_filename"]
     source_sentences = source_path.read_text(encoding="utf-8").splitlines()
     target_sentences = target_path.read_text(encoding="utf-8").splitlines()
 
@@ -352,7 +349,7 @@ def load_sentence_pairs(dataset, max_pairs=None):
             )
         sentence_pairs.append((source, target))
 
-    return sentence_pairs if max_pairs is None else sentence_pairs[:max_pairs]
+    return sentence_pairs 
 
 # ----------------------------------------------------------------
 # Main call function 
@@ -360,7 +357,7 @@ def load_sentence_pairs(dataset, max_pairs=None):
 
 def main():
     sentence_pairs_by_dataset = {
-        dataset["name"]: load_sentence_pairs(dataset, MAX_SENTENCE_PAIRS)
+        dataset["name"]: load_sentence_pairs(dataset)
         for dataset in DATASETS
     }
     results_by_dataset = {
