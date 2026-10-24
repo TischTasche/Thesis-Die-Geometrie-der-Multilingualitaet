@@ -115,22 +115,22 @@ def plot_aligned_topk_retrieval(results, dataset_name):
         (
             "aligned_top1_source",
             "Post-Procrustes Top-1 source-to-target retrieval",
-            "aligned_top1_source_to_target.png",
+            "aligned_top1_source.png",
         ),
         (
             "aligned_top5_source",
             "Post-Procrustes Top-5 source-to-target retrieval",
-            "aligned_top5_source_to_target.png",
+            "aligned_top5_source.png",
         ),
         (
             "aligned_top1_target",
             "Post-Procrustes Top-1 target-to-source retrieval",
-            "aligned_top1_target_to_source.png",
+            "aligned_top1_target.png",
         ),
         (
             "aligned_top5_target",
             "Post-Procrustes Top-5 target-to-source retrieval",
-            "aligned_top5_target_to_source.png",
+            "aligned_top5_target.png",
         ),
     ]
 
