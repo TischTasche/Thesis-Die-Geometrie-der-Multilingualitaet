@@ -9,6 +9,7 @@ from sklearn.decomposition import PCA
 from Plot_functions import (
     plot_aligned_topk_retrieval,
     plot_average_metrics,
+    plot_csls_alignment_comparison,
     plot_cosine_similarity,
     plot_language_cloud,
     plot_procrustes_error,
@@ -152,6 +153,7 @@ def csls(source, target, correct_indices, csls_k=3):
     src_norm = source / np.linalg.norm(source, axis=1, keepdims=True)
     tgt_norm = target / np.linalg.norm(target, axis=1, keepdims=True)
 
+
     sim_matrix = src_norm @ tgt_norm.T
 
     if csls_k > 0:
@@ -226,7 +228,7 @@ def evaluate_layers(source_by_layer, target_by_layer):
         )
 
         # procrustes 
-        train_number = 30
+        train_number = 800
         source_train = source[:train_number]
         target_train = target[:train_number]
         source_test = source[train_number:]
@@ -385,6 +387,7 @@ def main():
         plot_procrustes_error(results, dataset_name)
         plot_aligned_topk_retrieval(results, dataset_name)
         plot_average_metrics(results, dataset_name)
+        plot_csls_alignment_comparison(results, dataset_name)
 
     german_results = results_by_dataset["english_german"]
     french_results = results_by_dataset["english_french"]
