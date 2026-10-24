@@ -6,7 +6,16 @@ from typing import Any, cast
 import numpy as np
 import torch
 from transformers import AutoTokenizer, AutoModel
-from Plot_functions import plot_layer_metrics, plot_procrustes_retrieval, plot_average_metrics, plot_procrustes_error_table, plot_language_cloud
+from sklearn.decomposition import PCA
+from sklearn.model_selection import KFold
+from Plot_functions import (
+    plot_aligned_topk_retrieval,
+    plot_average_metrics,
+    plot_cosine_similarity,
+    plot_language_cloud,
+    plot_procrustes_error,
+    plot_topk_retrieval,
+)
 
 
 
@@ -116,28 +125,25 @@ def cosine_similarity(a, b):
 # Procrutes Alignment
 # ----------------------------------------------------------------
 """
-Rotating a word embedding using singular value decomposition to align it with 
-a target word embedding 
-source, target: word embeddings from source and target languages
-Returns rotation matrix R, an aligned target embedding and a procrustes error coefficient
+Fits a rotation that maps target embeddings into the source embedding space.
+Returns the rotation, aligned target embeddings, mean alignment error, and means.
 """
 def procrustes_align(source, target):
-    # Center each language's embeddings before finding the rotation
     source_mean = source.mean(axis=0, keepdims=True)
-    src_centered = mean_center(source)
-    tgt_centered = mean_center(target)
+    target_mean = target.mean(axis=0, keepdims=True)
 
-    # Calculating the rotation matrix R using SVD
-    H = src_centered.T @ tgt_centered
+    src_centered = source - source_mean
+    tgt_centered = target - target_mean
+
+    # Find the orthogonal map from target coordinates into source coordinates.
+    H = tgt_centered.T @ src_centered
     U, _, Vt = np.linalg.svd(H)
-    R = Vt.T @ U.T
+    rotation = U @ Vt
 
-    # Appling rotation matrix R on target embedding
-    aligned_tgt = (tgt_centered @ R) + source_mean
+    aligned_target = (tgt_centered @ rotation) + source_mean
 
-    # Calculating the procrustes error
-    mse = np.mean(np.linalg.norm(source - aligned_tgt, axis=1))
-    return R, aligned_tgt, mse
+    mean_error = np.mean(np.linalg.norm(source - aligned_target, axis=1))
+    return rotation, aligned_target, mean_error, source_mean, target_mean
 
 # ----------------------------------------------------------------
 # K-Nearest Neigbour
@@ -198,27 +204,43 @@ def embed_words_by_layer(words, model, tokenizer):
 
 
 """
-Main computation of all the metrics
+Main caller for the computation of all the metrics
 Calls on the cosine sim, nearest neighbour and procrustes methods to calculate
 respective metrics and returns them as a dictionary with keys and values
 source_by_layer: source language embeddings from each layer for a given model
 target_by_layer: target language embeddings from each layer for a given model
-Returns layer_metrics containing the name and the metrics for each method
+Returns layer_metrics dictionary with the name of the metric and its results
 """
 
 def evaluate_layers(source_by_layer, target_by_layer):
     layer_metrics = []
     for layer_index, (source, target) in enumerate(zip(source_by_layer, target_by_layer)):
+
+        # Cosine similarity
         scores = [cosine_similarity(src, tgt) for src, tgt in zip(source, target)]
+
+        # Top-k retrieval
         correct_indices = list(range(len(source)))
         top1_source, top5_source = nearest_neighbour(source, target, correct_indices)
         top1_target, top5_target = nearest_neighbour(target, source, correct_indices)
-        _, aligned_target, procrustes_error = procrustes_align(source[:30], target[:30])
+
+        # procrustes 
+        train_number = 80
+        source_train = source[:train_number]
+        target_train = target[:train_number]
+        source_test = source[train_number:]
+        target_test = target[train_number:]
+        rotation, aligned_source, procrustes_error, source_mean, target_mean = procrustes_align(
+            source_train, target_train
+            )
+        aligned_source_test = (source_test - source_mean) @ rotation + target_mean
+        aligned_target_test = (target_test - target_mean) @ rotation.T + source_mean
+        correct_idx = list(range(len(source_test)))
         ali_top1_source, ali_top5_source = nearest_neighbour(
-            source[30:], aligned_target, correct_indices
+            aligned_source_test, target_test, correct_idx
         )
         ali_top1_target, ali_top5_target = nearest_neighbour(
-            aligned_target, source, correct_indices
+            target_test, aligned_source_test, correct_idx
         )
 
         layer_name = "Embedding output" if layer_index == 0 else f"Layer {layer_index}"
@@ -241,10 +263,8 @@ def evaluate_layers(source_by_layer, target_by_layer):
             f"{layer_name}: cosine={metrics['avg_cosine']:.4f}, "
             f"top-1 source={top1_source:.4f}, top-5 source={top5_source:.4f}, "
             f"top-1 target={top1_target:.4f}, top-5 target={top5_target:.4f}, "
-            f"aligned top-1 source={ali_top1_source:.4f}, "
-            f"aligned top-5 source={ali_top5_source:.4f}, "
-            f"aligned top-1 target={ali_top1_target:.4f}, "
-            f"aligned top-5 target={ali_top5_target:.4f}, "
+            f"ali top-1 source={ali_top1_source:.4f}, ali top-5 source={ali_top5_source:.4f}, "
+            f"ali top-1 target={ali_top1_target:.4f}, ali top-5 target={ali_top5_target:.4f}, "
             f"Procrustes error={procrustes_error:.4f}"
         )
 
@@ -337,10 +357,11 @@ def main():
     for dataset in DATASETS:
         dataset_name = dataset["name"]
         results = results_by_dataset[dataset_name]
-        plot_layer_metrics(results, dataset_name)
-        plot_procrustes_retrieval(results, dataset_name)
+        plot_cosine_similarity(results, dataset_name)
+        plot_topk_retrieval(results, dataset_name)
+        plot_procrustes_error(results, dataset_name)
+        plot_aligned_topk_retrieval(results, dataset_name)
         plot_average_metrics(results, dataset_name)
-        plot_procrustes_error_table(results, dataset_name)
 
     german_results = results_by_dataset["english_german"]
     french_results = results_by_dataset["english_french"]
