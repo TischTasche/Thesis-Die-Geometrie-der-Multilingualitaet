@@ -195,37 +195,13 @@ dataset_name: assigning each plot the respective language combination
 Returns plots of tables with averages of error stat
 """
 def plot_procrustes_error(results, dataset_name):
-    layer_names = list(dict.fromkeys(
-        layer["layer"]
-        for model_result in results.values()
-        for layer in model_result["layer_metrics"]
-    ))
-    model_names = list(results)
-    table_rows = []
-    for model_name in model_names:
-        errors_by_layer = {
-            layer["layer"]: f"{layer['procrustes_error']:.4f}"
-            for layer in results[model_name]["layer_metrics"]
-        }
-        table_rows.append([errors_by_layer.get(layer_name, "") for layer_name in layer_names])
-
-    figure, axis = plt.subplots(figsize=(max(10, len(layer_names) * 1.2), max(3, len(model_names) * 0.7)))
-    axis.axis("off")
-    axis.set_title(f"Procrustes alignment error by layer: {dataset_name}")
-    table = axis.table(
-        cellText=table_rows,
-        rowLabels=model_names,
-        colLabels=layer_names,
-        loc="center",
-        cellLoc="center",
-        rowLoc="center",
+    _plot_layer_metric(
+        results,
+        dataset_name,
+        "procrustes_error",
+        "Procrustes alignment error",
+        "procrustes_error.png",
     )
-    table.auto_set_font_size(False)
-    table.set_fontsize(9)
-    table.scale(1, 1.3)
-    figure.tight_layout()
-    save_figure(figure, "procrustes_error_table.png", dataset_name)
-    plt.show()
 
 
 """
