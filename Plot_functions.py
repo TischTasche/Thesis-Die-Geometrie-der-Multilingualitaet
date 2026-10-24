@@ -10,7 +10,7 @@ from sklearn.decomposition import PCA
 
 
 # ----------------------------------------------------------------
-# PCA and Pyplot
+# Helper function
 # ----------------------------------------------------------------
 """
 Helper function to easily save plots into folder in workspace
@@ -25,87 +25,129 @@ def save_figure(figure, filename, dataset_name):
     figure.savefig(image_directory / filename, dpi=300, bbox_inches="tight")
 
 
-"""
-Plots the results of one metric of each layer and model into one plot
-IMPORTANT: DOES NOT CHECK LAYER DIFFERENCES 12 vs 24
-results: layer metrics of each model
-dataset_name: assigining each plot to each language pair correctly
-Returns plots for each metric containing the results of each layer and model
-"""
-def plot_layer_metrics(results, dataset_name):
-    metric_plots = [
-        ("avg_cosine", "Cosine similarity", None),
-        ("top1_source", "Top-1 translation retrieval", (0, 1)),
-        ("top5_source", "Top-5 translation retrieval", (0, 1)),
-        ("top1_target", "Top-1 translation retrieval", (0, 1)),
-        ("top5_target", "Top-5 translation retrieval", (0, 1)),
-        ("procrustes_error", "Procrustes alignment error", None),
-    ]
-    for metric_key, title, y_limits in metric_plots:
-        figure, axis = plt.subplots(figsize=(9, 6))
-        for model_name, model_result in results.items():
-            layer_metrics = model_result["layer_metrics"]
-            layer_indices = range(len(layer_metrics))
-            values = [metric[metric_key] for metric in layer_metrics]
-            axis.plot(layer_indices, values, marker="o", markersize=3, label=model_name)
+# ----------------------------------------------------------------
+# Plot laod function
+# ----------------------------------------------------------------
 
-        axis.set_title(title + " for " + dataset_name)
-        axis.set_xlabel("Hidden-state index")
-        axis.set_ylabel("Error" if metric_key == "procrustes_error" else "Accuracy")
-        axis.grid(True, alpha=0.3)
-        if y_limits is not None:
-            axis.set_ylim(*y_limits)
-        axis.legend(title="Model")
-        figure.tight_layout()
-        save_figure(figure, f"{metric_key}.png", dataset_name)
-
-    plt.show()
-
-
-"""
-Plots post-Procrustes top-k retrieval accuracy for each model and layer.
-"""
-def plot_procrustes_retrieval(results, dataset_name):
-    table_rows = []
+def _plot_layer_metric(results, dataset_name, metric_key, title, filename, y_limits=None):
+    figure, axis = plt.subplots(figsize=(9, 6))
     for model_name, model_result in results.items():
-        for layer in model_result["layer_metrics"]:
-            table_rows.append([
-                model_name,
-                layer["layer"],
-                f"{layer['aligned_top1_source']:.1%}",
-                f"{layer['aligned_top5_source']:.1%}",
-                f"{layer['aligned_top1_target']:.1%}",
-                f"{layer['aligned_top5_target']:.1%}",
-            ])
+        layer_metrics = model_result["layer_metrics"]
+        layer_indices = range(len(layer_metrics))
+        values = [metric[metric_key] for metric in layer_metrics]
+        axis.plot(layer_indices, values, marker="o", markersize=3, label=model_name)
 
-    figure, axis = plt.subplots(
-        figsize=(13, max(4, len(table_rows) * 0.3 + 1.5))
-    )
-    axis.axis("off")
-    axis.set_title(f"Post-Procrustes retrieval accuracy by layer: {dataset_name}")
-    table = axis.table(
-        cellText=table_rows,
-        colLabels=[
-            "Model",
-            "Layer",
-            "Top-1 source→target",
-            "Top-5 source→target",
-            "Top-1 target→source",
-            "Top-5 target→source",
-        ],
-        loc="center",
-        cellLoc="center",
-    )
-    table.auto_set_font_size(False)
-    table.set_fontsize(8)
-    table.scale(1, 1.2)
+    axis.set_title(f"{title} for {dataset_name}")
+    axis.set_xlabel("Hidden-state index")
+    axis.set_ylabel("Accuracy" if y_limits is not None else title)
+    axis.grid(True, alpha=0.3)
+    if y_limits is not None:
+        axis.set_ylim(*y_limits)
+    axis.legend(title="Model")
     figure.tight_layout()
-    save_figure(figure, "procrustes_retrieval_table.png", dataset_name)
+    save_figure(figure, filename, dataset_name)
     plt.show()
 
 
+# ----------------------------------------------------------------
+# Plot call functions 
+# ----------------------------------------------------------------
+
 """
-Plots a table show casing the average of all metrics across layers for each model
+Calls main layer metric plot function using the computed results and 
+plots average cosine similarity across all layers for each model
+results: computed values of cosine similarity of each model
+dataset_name: depending on current dataset (either eng-ger or eng-fre)
+Returns two dimensional graph/plot with cosine similarity of each model and
+for each layer
+"""
+def plot_cosine_similarity(results, dataset_name):
+    # call for main plot with cosine similarity for each model result
+    _plot_layer_metric(
+        results,
+        dataset_name,
+        "avg_cosine",
+        "Similarity score",
+        "avg_cosine.png",
+    )
+
+
+
+"""
+Calls main layer metric plot function using the computed results and 
+plots average topk retrieval across all layers for each model
+results: computed values of topk retrieval of each model
+dataset_name: depending on current dataset (either eng-ger or eng-fre)
+Returns two dimensional graph/plot with topk retrieval of each model 
+and for each layer
+"""
+def plot_topk_retrieval(results, dataset_name):
+    
+    retrieval_plots = [
+        ("top1_source", "Top-1 source-to-target retrieval", "top1_source.png"),
+        ("top5_source", "Top-5 source-to-target retrieval", "top5_source.png"),
+        ("top1_target", "Top-1 target-to-source retrieval", "top1_target.png"),
+        ("top5_target", "Top-5 target-to-source retrieval", "top5_target.png"),
+    ]
+
+    # call for main plot with top-k retrieval for each model result
+    for metric_key, title, filename in retrieval_plots:
+        _plot_layer_metric(
+            results,
+            dataset_name,
+            metric_key,
+            title,
+            filename,
+            y_limits=(0, 1),
+        )
+
+
+"""
+Calls main layer metric plot function using the computed results and 
+plots average aligned topk retrieval across all layers for each model
+results: computed values of aligned topk retrieval of each model
+dataset_name: depending on current dataset (either eng-ger or eng-fre)
+Returns two dimensional graph/plot with aligned topk retrieval of each model 
+and for each layer
+"""
+def plot_aligned_topk_retrieval(results, dataset_name):
+    retrieval_metrics = [
+        (
+            "aligned_top1_source",
+            "Post-Procrustes Top-1 source-to-target retrieval",
+            "aligned_top1_source_to_target.png",
+        ),
+        (
+            "aligned_top5_source",
+            "Post-Procrustes Top-5 source-to-target retrieval",
+            "aligned_top5_source_to_target.png",
+        ),
+        (
+            "aligned_top1_target",
+            "Post-Procrustes Top-1 target-to-source retrieval",
+            "aligned_top1_target_to_source.png",
+        ),
+        (
+            "aligned_top5_target",
+            "Post-Procrustes Top-5 target-to-source retrieval",
+            "aligned_top5_target_to_source.png",
+        ),
+    ]
+
+    # call for main plot with aligned top-k retrieval for each model result
+    for metric_key, title, filename in retrieval_metrics:
+        _plot_layer_metric(
+            results,
+            dataset_name,
+            metric_key,
+            title,
+            filename,
+            y_limits=(0, 1),
+        )
+
+
+"""
+Plots a table showcasing the average of all metrics across layers for each model
 So average of cosine similarity of e.g. XLM of all layers
 results: calculated layer metrics of all models
 dataset_name: assigning each plot the respective language combination
@@ -146,7 +188,14 @@ def plot_average_metrics(results, dataset_name):
     plt.show()
 
 
-def plot_procrustes_error_table(results, dataset_name):
+"""
+Plots a table showcasing the average of procrustes error across layers for each model
+So average of procrustes error of e.g. XLM of all layers
+results: calculated layer metrics of all models
+dataset_name: assigning each plot the respective language combination
+Returns plots of tables with averages of error stat
+"""
+def plot_procrustes_error(results, dataset_name):
     layer_names = list(dict.fromkeys(
         layer["layer"]
         for model_result in results.values()
@@ -178,6 +227,7 @@ def plot_procrustes_error_table(results, dataset_name):
     figure.tight_layout()
     save_figure(figure, "procrustes_error_table.png", dataset_name)
     plt.show()
+
 
 """
 Plots 3 dimensional graphs showcasing dimension reduction using PCA
