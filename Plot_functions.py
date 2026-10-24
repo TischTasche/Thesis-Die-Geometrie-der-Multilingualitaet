@@ -68,8 +68,7 @@ def plot_cosine_similarity(results, dataset_name):
         dataset_name,
         "avg_cosine",
         "Cosine Similarity",
-        "avg_cosine.png",
-        "Similarity score"
+        "avg_cosine.png"
     )
 
 
@@ -82,26 +81,25 @@ dataset_name: depending on current dataset (either eng-ger or eng-fre)
 Returns two dimensional graph/plot with topk retrieval of each model 
 and for each layer
 """
-def plot_topk_retrieval(results, dataset_name):
+def plot_topk_csls(results, dataset_name):
+
+        retrieval_plots = [
+            ("top1_source", "CSLS Top-1 source-to-target retrieval", "top1_source.png"),
+            ("top5_source", "CSLS Top-5 source-to-target retrieval", "top5_source.png"),
+            ("top1_target", "CSLS Top-1 target-to-source retrieval", "top1_target.png"),
+            ("top5_target", "CSLS Top-5 target-to-source retrieval", "top5_target.png"),
+        ]
     
-    retrieval_plots = [
-        ("top1_source", "Top-1 source-to-target retrieval", "top1_source.png"),
-        ("top5_source", "Top-5 source-to-target retrieval", "top5_source.png"),
-        ("top1_target", "Top-1 target-to-source retrieval", "top1_target.png"),
-        ("top5_target", "Top-5 target-to-source retrieval", "top5_target.png"),
-    ]
-
-    # call for main plot with top-k retrieval for each model result
-    for metric_key, title, filename in retrieval_plots:
-        _plot_layer_metric(
-            results,
-            dataset_name,
-            metric_key,
-            title,
-            filename,
-            y_limits=(0, 1),
-        )
-
+        # call for main plot with top-k retrieval for each model result
+        for metric_key, title, filename in retrieval_plots:
+            _plot_layer_metric(
+                results,
+                dataset_name,
+                metric_key,
+                title,
+                filename,
+                y_limits=(0, 1),
+            )
 
 """
 Calls main layer metric plot function using the computed results and 
@@ -115,22 +113,22 @@ def plot_aligned_topk_retrieval(results, dataset_name):
     retrieval_metrics = [
         (
             "aligned_top1_source",
-            "Post-Procrustes Top-1 source-to-target retrieval",
+            "Post-Procrustes CSLS Top-1 source-to-target retrieval",
             "aligned_top1_source.png",
         ),
         (
             "aligned_top5_source",
-            "Post-Procrustes Top-5 source-to-target retrieval",
+            "Post-Procrustes CSLS Top-5 source-to-target retrieval",
             "aligned_top5_source.png",
         ),
         (
             "aligned_top1_target",
-            "Post-Procrustes Top-1 target-to-source retrieval",
+            "Post-Procrustes CSLS Top-1 target-to-source retrieval",
             "aligned_top1_target.png",
         ),
         (
             "aligned_top5_target",
-            "Post-Procrustes Top-5 target-to-source retrieval",
+            "Post-Procrustes CSLS Top-5 target-to-source retrieval",
             "aligned_top5_target.png",
         ),
     ]
@@ -157,10 +155,10 @@ Returns plots of tables with averages
 def plot_average_metrics(results, dataset_name):
     summary_metrics = [
         ("avg_cosine", "Cosine Similarity"),
-        ("top1_source", "Top-1 Retrieval (source)"),
-        ("top5_source", "Top-5 Retrieval (source)"),
-        ("top1_target", "Top-1 Retrieval (target)"),
-        ("top5_target", "Top-5 Retrieval (target)"),
+        ("top1_source", "CSLS Top-1 Retrieval (source)"),
+        ("top5_source", "CSLS Top-5 Retrieval (source)"),
+        ("top1_target", "CSLS Top-1 Retrieval (target)"),
+        ("top5_target", "CSLS Top-5 Retrieval (target)"),
     ]
     model_names = list(results)
     summary_rows = [

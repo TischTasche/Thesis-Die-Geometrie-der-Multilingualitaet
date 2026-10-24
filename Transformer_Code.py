@@ -359,7 +359,6 @@ def main():
         dataset_name = dataset["name"]
         results = results_by_dataset[dataset_name]
         plot_cosine_similarity(results, dataset_name)
-        plot_topk_retrieval(results, dataset_name)
         plot_procrustes_error(results, dataset_name)
         plot_aligned_topk_retrieval(results, dataset_name)
         plot_average_metrics(results, dataset_name)
