@@ -12,8 +12,8 @@ from Plot_functions import (
     plot_csls_alignment_comparison,
     plot_cosine_similarity,
     plot_language_cloud,
-    plot_pca_cumulative_variance,
     plot_procrustes_error,
+    plot_topk_csls,
 )
 
 
@@ -236,8 +236,8 @@ def evaluate_layers(source_by_layer, target_by_layer):
         rotation, aligned_source, procrustes_error, source_mean, target_mean = procrustes_align(
             source_train, target_train
             )
-        aligned_source_test = (source_test - source_mean) @ rotation + target_mean
-        aligned_target_test = (target_test - target_mean) @ rotation.T + source_mean
+        aligned_source_test = (source_test - source_mean) @ rotation.T + target_mean
+        aligned_target_test = (target_test - target_mean) @ rotation + source_mean
         correct_idx = list(range(len(source_test)))
         ali_top1_source, ali_top5_source = csls(
             aligned_source_test, target_test, correct_idx, csls_k=3
@@ -382,6 +382,7 @@ def main():
         dataset_name = dataset["name"]
         results = results_by_dataset[dataset_name]
         plot_cosine_similarity(results, dataset_name)
+        plot_topk_csls(results, dataset_name)
         plot_procrustes_error(results, dataset_name)
         plot_aligned_topk_retrieval(results, dataset_name)
         plot_average_metrics(results, dataset_name)
